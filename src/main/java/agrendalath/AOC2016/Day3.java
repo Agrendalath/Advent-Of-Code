@@ -21,11 +21,11 @@ public class Day3 {
     private static int solveSecond(String input) {
         int counter = 0;
         String[] splitInput = input.split("\n");
-        for (int i=2; i<splitInput.length; i+=3) {
-            StringTokenizer first = new StringTokenizer(splitInput[i-2]);
-            StringTokenizer second = new StringTokenizer(splitInput[i-1]);
+        for (int i = 2; i < splitInput.length; i += 3) {
+            StringTokenizer first = new StringTokenizer(splitInput[i - 2]);
+            StringTokenizer second = new StringTokenizer(splitInput[i - 1]);
             StringTokenizer third = new StringTokenizer(splitInput[i]);
-            for (int j=0; j<3; ++j) {
+            for (int j = 0; j < 3; ++j) {
                 int a = Integer.parseInt(first.nextToken());
                 int b = Integer.parseInt(second.nextToken());
                 int c = Integer.parseInt(third.nextToken());
