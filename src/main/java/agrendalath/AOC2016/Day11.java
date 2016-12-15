@@ -42,15 +42,14 @@ public class Day11 {
 
         while (!queue.isEmpty()) {
             currentState = queue.remove();
-            for (State state : currentState.getNextStates()) {
-                if (!previousStates.contains(state) && state.isLegal()) {
-                    if (state.isWinning())
-                        return state.getMoves();
+            for (State state : currentState.getNextStates(previousStates)) {
+                if (state.isWinning())
+                    return state.getMoves();
 
-                    previousStates.add(state);
-                    queue.add(state);
+                previousStates.add(state);
+                queue.add(state);
 
-                }
+//                }
             }
         }
         return -1;
@@ -64,6 +63,8 @@ public class Day11 {
 
     public static void main(String[] args) {
         System.out.println(solveFirst(Input.get(Day11.class)));
+
+        /* Computed in 15 minutes and 55 seconds when with: -Xmx10g -XX:-UseGCOverheadLimit -XX:+UseConcMarkSweepGC */
         System.out.println(solveSecond(Input.get(Day11.class)));
     }
 
@@ -92,161 +93,154 @@ public class Day11 {
             }
         }
 
-        Collection<State> getNextStates() {
-            Set<String> generatorsOnly = new HashSet<>(floors[position].generators);
-            generatorsOnly.removeAll(floors[position].microchips);
-            Set<String> microchipsOnly = new HashSet<>(floors[position].microchips);
-            microchipsOnly.removeAll(floors[position].generators);
+        Collection<State> getNextStates(Set<State> previousStates) {
+            //noinspection unchecked
+            Set<State> nextStates = new StateHashSet(previousStates);
+            moveGenerators(nextStates);
+            moveMicrochips(nextStates);
+            movePairs(nextStates);
 
-            Set<State> nextStates = new HashSet<>();
-            nextStates.addAll(moveGenerators(generatorsOnly, microchipsOnly));
-            nextStates.addAll(moveMicrochips(microchipsOnly));
-            nextStates.addAll(movePair(generatorsOnly, microchipsOnly));
-
-            nextStates.remove(null);
             return nextStates;
         }
 
-        Collection<State> moveGenerators(Set<String> generatorsOnly, Set<String> microchipsOnly) {
-            Set<State> states = new HashSet<>();
-
-            generatorsOnly.forEach(generator -> {
+        void moveGenerators(Set<State> nextStates) {
+            floors[position].generatorsOnly.forEach(generator -> {
                 if (position - 1 >= 0) {
                     State newState = moveGenerator(this, generator, position, position - 1);
-                    states.add(newState);
+                    nextStates.add(newState);
 
-                    generatorsOnly.forEach(secondGenerator -> {
-                        if (!secondGenerator.equals(generator))
-                            states.add(moveGenerator(newState, secondGenerator, position, position - 1));
-                    });
-                    microchipsOnly.forEach(secondMicrochip ->
-                            states.add(moveMicrochip(newState, secondMicrochip, position, position - 1)));
+                    if (!newState.isLegal()) {
+                        newState.floors[position].generatorsOnly.forEach(secondGenerator ->
+                                nextStates.add(moveGenerator(newState, secondGenerator, position, position - 1)));
+                        newState.floors[position].microchipsOnly.forEach(secondMicrochip ->
+                                nextStates.add(moveMicrochip(newState, secondMicrochip, position, position - 1)));
+                    }
                 }
                 if (position + 1 < floors.length) {
                     State newState = moveGenerator(this, generator, position, position + 1);
-                    states.add(newState);
+                    int numberOfStates = nextStates.size();
 
-                    generatorsOnly.forEach(secondGenerator -> {
-                        if (!secondGenerator.equals(generator))
-                            states.add(moveGenerator(newState, secondGenerator, position, position + 1));
-                    });
-                    microchipsOnly.forEach(secondMicrochip ->
-                            states.add(moveMicrochip(newState, secondMicrochip, position, position + 1)));
+                    newState.floors[position].generatorsOnly.forEach(secondGenerator ->
+                            nextStates.add(moveGenerator(newState, secondGenerator, position, position + 1)));
+                    newState.floors[position].microchipsOnly.forEach(secondMicrochip ->
+                            nextStates.add(moveMicrochip(newState, secondMicrochip, position, position + 1)));
+
+                    if (nextStates.size() == numberOfStates)
+                        nextStates.add(newState);
                 }
             });
-            return states;
         }
 
-        Collection<State> moveMicrochips(Set<String> microchipsOnly) {
-            Set<State> states = new HashSet<>();
+        void moveMicrochips(Set<State> nextStates) {
             Set<String> pairs = new HashSet<>(floors[position].generators);
             pairs.retainAll(floors[position].microchips);
             String[] pairsArray = pairs.toArray(new String[0]);
             String pair = pairsArray.length > 0 ? pairsArray[0] : null;
 
-            microchipsOnly.forEach(microchip -> {
+            floors[position].microchipsOnly.forEach(microchip -> {
                 if (position - 1 >= 0) {
                     State newState = moveMicrochip(this, microchip, position, position - 1);
-                    states.add(newState);
+                    nextStates.add(newState);
 
-                    microchipsOnly.forEach(secondMicrochip -> {
-                        if (!secondMicrochip.equals(microchip))
-                            states.add(moveMicrochip(newState, secondMicrochip, position, position - 1));
-                    });
-                    if (pair != null) {
-                        if (newState.floors[position].canUnpairGenerator() == 1)
-                            states.add(moveGenerator(newState, pair, position, position - 1));
-                        states.add(moveMicrochip(newState, pair, position, position - 1));
+                    if (!newState.isLegal()) {
+                        newState.floors[position].microchipsOnly.forEach(secondMicrochip ->
+                                nextStates.add(moveMicrochip(newState, secondMicrochip, position, position - 1)));
+                        if (pair != null) {
+                            if (newState.floors[position].canUnpairGenerator() == 1)
+                                nextStates.add(moveGenerator(newState, pair, position, position - 1));
+                            nextStates.add(moveMicrochip(newState, pair, position, position - 1));
+                        }
                     }
                 }
                 if (position + 1 < floors.length) {
                     State newState = moveMicrochip(this, microchip, position, position + 1);
-                    states.add(newState);
+                    int numberOfStates = nextStates.size();
 
-                    microchipsOnly.forEach(secondMicrochip -> {
-                        if (!secondMicrochip.equals(microchip))
-                            states.add(moveMicrochip(newState, secondMicrochip, position, position + 1));
-                    });
+                    newState.floors[position].microchipsOnly.forEach(secondMicrochip ->
+                            nextStates.add(moveMicrochip(newState, secondMicrochip, position, position + 1)));
                     if (pair != null) {
                         if (newState.floors[position].canUnpairGenerator() == 1)
-                            states.add(moveGenerator(newState, pair, position, position + 1));
-                        states.add(moveMicrochip(newState, pair, position, position + 1));
+                            nextStates.add(moveGenerator(newState, pair, position, position + 1));
+                        nextStates.add(moveMicrochip(newState, pair, position, position + 1));
                     }
+
+                    if (nextStates.size() == numberOfStates)
+                        nextStates.add(newState);
                 }
             });
-
-            return states;
         }
 
-        Collection<State> movePair(Set<String> generatorsOnly, Set<String> microchipsOnly) {
-            Set<State> states = new HashSet<>();
+        void movePairs(Set<State> nextStates) {
             Set<String> pairs = new HashSet<>(floors[position].generators);
             pairs.retainAll(floors[position].microchips);
             String[] pairsArray = pairs.toArray(new String[0]);
             if (pairsArray.length == 0)
-                return states;
+                return;
 
             String pair = pairsArray[0];
             String secondPair = pairsArray.length > 1 ? pairsArray[1] : null;
 
             if (position - 1 >= 0)
-                states.add(movePair(pair, position, position - 1));
+                nextStates.add(movePair(pair, position, position - 1));
 
             if (position + 1 < floors.length)
-                states.add(movePair(pair, position, position + 1));
+                nextStates.add(movePair(pair, position, position + 1));
 
             if (position - 1 >= 0) {
                 State newState = moveMicrochip(this, pair, position, position - 1);
-                states.add(newState);
+                nextStates.add(newState);
 
-                microchipsOnly.forEach(microchip ->
-                        states.add(moveMicrochip(newState, microchip, position, position - 1)));
-                if (secondPair != null) {
-                    states.add(moveMicrochip(newState, secondPair, position, position - 1));
+                if (!newState.isLegal()) {
+                    newState.floors[position].microchipsOnly.forEach(microchip ->
+                            nextStates.add(moveMicrochip(newState, microchip, position, position - 1)));
+                    if (secondPair != null) {
+                        nextStates.add(moveMicrochip(newState, secondPair, position, position - 1));
+                    }
                 }
             }
             if (position + 1 < floors.length) {
                 State newState = moveMicrochip(this, pair, position, position + 1);
-                states.add(newState);
+                int numberOfStates = nextStates.size();
 
-                microchipsOnly.forEach(microchip ->
-                        states.add(moveMicrochip(newState, microchip, position, position + 1)));
+                newState.floors[position].microchipsOnly.forEach(microchip ->
+                        nextStates.add(moveMicrochip(newState, microchip, position, position + 1)));
                 if (secondPair != null) {
-                    states.add(moveMicrochip(newState, secondPair, position, position + 1));
+                    nextStates.add(moveMicrochip(newState, secondPair, position, position + 1));
                 }
+
+                if (nextStates.size() == numberOfStates)
+                    nextStates.add(newState);
             }
 
             if (floors[position].canUnpairGenerator() != 0) {
                 if (position - 1 >= 0) {
                     State newState = moveGenerator(this, pair, position, position - 1);
                     if (floors[position].canUnpairGenerator() == 1)
-                        states.add(newState);
+                        nextStates.add(newState);
                     else {
-                        generatorsOnly.forEach(generator ->
-                                states.add(moveGenerator(newState, generator, position, position - 1)));
-                        microchipsOnly.forEach(microchip ->
-                                states.add(moveMicrochip(newState, microchip, position, position - 1)));
+                        newState.floors[position].generatorsOnly.forEach(generator ->
+                                nextStates.add(moveGenerator(newState, generator, position, position - 1)));
+                        newState.floors[position].microchipsOnly.forEach(microchip ->
+                                nextStates.add(moveMicrochip(newState, microchip, position, position - 1)));
                         if (secondPair != null)
-                            states.add(moveGenerator(newState, secondPair, position, position - 1));
+                            nextStates.add(moveGenerator(newState, secondPair, position, position - 1));
                     }
                 }
                 if (position + 1 < floors.length) {
                     State newState = moveGenerator(this, pair, position, position + 1);
                     if (floors[position].canUnpairGenerator() == 1)
-                        states.add(newState);
+                        nextStates.add(newState);
                     else {
-                        generatorsOnly.forEach(generator ->
-                                states.add(moveGenerator(newState, generator, position, position + 1)));
-                        microchipsOnly.forEach(microchip ->
-                                states.add(moveMicrochip(newState, microchip, position, position + 1)));
+                        newState.floors[position].generatorsOnly.forEach(generator ->
+                                nextStates.add(moveGenerator(newState, generator, position, position + 1)));
+                        newState.floors[position].microchipsOnly.forEach(microchip ->
+                                nextStates.add(moveMicrochip(newState, microchip, position, position + 1)));
                         if (secondPair != null)
-                            states.add(moveGenerator(newState, secondPair, position, position + 1));
+                            nextStates.add(moveGenerator(newState, secondPair, position, position + 1));
                     }
                 }
 
             }
-
-            return states;
         }
 
         private State moveGenerator(State state, String item, int from, int to) {
@@ -326,30 +320,51 @@ public class Day11 {
         private final Set<String> generators;
         private final Set<String> microchips;
 
+        private final Set<String> generatorsOnly;
+        private final Set<String> microchipsOnly;
+
         Floor() {
             generators = new HashSet<>();
             microchips = new HashSet<>();
+            generatorsOnly = new HashSet<>();
+            microchipsOnly = new HashSet<>();
         }
 
         Floor(Floor floor) {
             generators = new HashSet<>(floor.generators);
             microchips = new HashSet<>(floor.microchips);
+            generatorsOnly = new HashSet<>(floor.generatorsOnly);
+            microchipsOnly = new HashSet<>(floor.microchipsOnly);
         }
 
         void addGenerator(String item) {
             generators.add(item);
+            if (microchips.contains(item))
+                microchipsOnly.remove(item);
+            else
+                generatorsOnly.add(item);
         }
 
         void addMicrochip(String item) {
             microchips.add(item);
+            if (generators.contains(item))
+                generatorsOnly.remove(item);
+            else
+                microchipsOnly.add(item);
         }
 
         void getGenerator(String item) {
             generators.remove(item);
+            generatorsOnly.remove(item);
+            if (microchips.contains(item))
+                microchipsOnly.add(item);
         }
 
         void getMicrochip(String item) {
             microchips.remove(item);
+            microchipsOnly.remove(item);
+            if (generators.contains(item))
+                generatorsOnly.add(item);
         }
 
         int canUnpairGenerator() {
@@ -371,7 +386,8 @@ public class Day11 {
 
             Floor floor = (Floor) o;
 
-            return generators.equals(floor.generators) && microchips.equals(floor.microchips);
+            return generatorsOnly.equals(floor.generatorsOnly) && microchipsOnly.equals(floor.microchipsOnly) &&
+                    generators.size() == floor.generators.size();
         }
 
         @Override
@@ -379,6 +395,83 @@ public class Day11 {
             int result = generators.size();
             result = 31 * result + microchips.size();
             return result;
+        }
+    }
+
+    private static class StateHashSet implements Set {
+        private final Set<State> set = new HashSet<>();
+        private final Set<State> previousStates;
+
+        StateHashSet(Set<State> previousStates) {
+            this.previousStates = previousStates;
+        }
+
+        @Override
+        public int size() {
+            return set.size();
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return set.isEmpty();
+        }
+
+        @Override
+        public boolean contains(Object o) {
+            return set.contains(o);
+        }
+
+        @Override
+        public Iterator iterator() {
+            return set.iterator();
+        }
+
+        @Override
+        public Object[] toArray() {
+            return set.toArray();
+        }
+
+        @Override
+        public boolean add(Object o) {
+            //noinspection SuspiciousMethodCalls
+            return (((State) o).isLegal() && !previousStates.contains(o) && set.add((State) o));
+        }
+
+        @Override
+        public boolean remove(Object o) {
+            return set.remove(o);
+        }
+
+        @Override
+        public boolean addAll(Collection collection) {
+            //noinspection unchecked
+            return set.addAll((Collection<? extends State>) collection);
+        }
+
+        @Override
+        public void clear() {
+            set.clear();
+        }
+
+        @Override
+        public boolean retainAll(Collection collection) {
+            return set.retainAll(collection);
+        }
+
+        @Override
+        public boolean removeAll(Collection collection) {
+            //noinspection unchecked
+            return set.removeAll((Collection<? extends State>) collection);
+        }
+
+        @Override
+        public boolean containsAll(Collection collection) {
+            return set.containsAll(collection);
+        }
+
+        @Override
+        public Object[] toArray(Object[] objects) {
+            return set.toArray(new Object[0]);
         }
     }
 }
