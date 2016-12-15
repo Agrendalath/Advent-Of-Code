@@ -31,9 +31,8 @@ public class Day14 {
         List<PadKey> possibleKeys = new ArrayList<>();
         List<PadKey> quintetKeys = new ArrayList<>();
         List<Integer> keys = new ArrayList<>();
-        int index;
 
-        for (index = 0; keys.size() < 65; ++index) {
+        for (int index = 0; keys.size() < 65; ++index) {
             if (index % 1000 == 0) {
                 for (int i = 0; i < possibleKeys.size(); ++i) {
                     for (int j = 0; j < quintetKeys.size(); ++j) {
