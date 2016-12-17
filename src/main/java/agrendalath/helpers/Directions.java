@@ -3,12 +3,13 @@ package agrendalath.helpers;
 import java.awt.*;
 
 public enum Directions {
-    NORTH(new Point(0, 1)),
-    SOUTH(new Point(0, -1)),
-    WEST(new Point(-1, 0)),
-    EAST(new Point(1, 0));
+    NORTH(new Point(0, 1), "U"),
+    SOUTH(new Point(0, -1), "D"),
+    WEST(new Point(-1, 0), "L"),
+    EAST(new Point(1, 0), "R");
 
     private final Point movement;
+    private final String shortName;
     private Neighbours neighbours;
 
     static {
@@ -18,8 +19,13 @@ public enum Directions {
         EAST.neighbours = new Neighbours(NORTH, SOUTH);
     }
 
-    Directions(Point movement) {
+    Directions(Point movement, String shortName) {
         this.movement = movement;
+        this.shortName = shortName;
+    }
+
+    public void move(Point from) {
+        from.setLocation(from.x + movement.x, from.y + movement.y);
     }
 
     public void move(Point from, int steps) {
@@ -32,6 +38,9 @@ public enum Directions {
         return neighbours.right;
     }
 
+    public String getShortName() {
+        return shortName;
+    }
 
     private static class Neighbours {
         private final Directions left;
